@@ -210,17 +210,19 @@ Entries for this content_id (the first is the original decision, the second is t
 
 ## How I Used AI
 
+Straight up: Claude Code did most of the building in this project. I gave it each milestone and it wrote the code, the README sections and the first draft of `criteria.md`, and ran the tests. The two moments below are the ones where what I got was off and something had to change.
+
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* The Milestone 1 write-up: the path a submission takes, what both signals measure and miss, the false positive trace, and the shape of `/submit` and `/appeal`.
+- *What came back:* Correct, but it read like a polished essay. Words like "the substance" and "ornate", numbered bold lead-ins, and a very confident tone about numbers (like a 0.8 `model_score`) that nobody had measured yet.
+- *What I changed:* I asked for it to be redone in plain student voice. The rewrite kept the same facts but said the 0.8 was a guess to check in Milestone 3. When I did check, my plain human paragraph scored 0.73 on signal one, so the guess was about right, and that is what the false positive trace was worried about.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* Milestone 4, the style signal and the combining rule.
+- *What came back:* Three measures in `stylometry.py`, a combine rule that averages and then clamps to the unsure band when the two signals are more than 0.4 apart, and a table of the four calibration inputs plus my plain paragraph (model 0.734, style 0.191, so they split). Then the first live `/submit` crashed with `NameError: name 'stylometry' is not defined`, because one of the edits to `app.py` silently didn't apply (the comment it was matching on was different from what it assumed).
+- *What I changed:* Added the missing imports in `app.py` and reran, and the response then had both scores and the log had all three numbers. Keep in mind the calibration table is one example per row, so I can't say the numbers are solid, and the criteria numbers in `criteria.md` were drafted by Claude as proposals. I'm the one who has to defend them in unit 8.
 
 <!-- ═══════════════════════ UNIT 8 — THE TEST ═══════════════════════ -->
 
