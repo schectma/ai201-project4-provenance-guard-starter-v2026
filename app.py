@@ -148,6 +148,10 @@ def health():
     })
 
 
+def _bad_request(message: str):
+    return jsonify({"error": "bad_request", "message": message}), 400
+
+
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
 @app.post("/submit")
@@ -199,17 +203,54 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _bad_request("Send a JSON object with \"text\" and \"creator_id\".")
 
-    # TODO: delete this and build the route.
+    text = payload.get("text")
+    creator_id = payload.get("creator_id")
+
+    if not isinstance(text, str) or not text.strip():
+        return _bad_request("Send a non-empty string in \"text\".")
+    if not isinstance(creator_id, str) or not creator_id.strip():
+        return _bad_request("Send a non-empty string in \"creator_id\".")
+    if len(text) > config.MAX_TEXT_CHARS:
+        return _bad_request(f"\"text\" is over {config.MAX_TEXT_CHARS} characters.")
+
+    # Milestone 3: only signal one is wired in. Confidence and label are
+    # placeholders until Milestones 4 and 5.
+    import detector
+
+    try:
+        model_score = detector.model_signal(text)
+    except ValueError as exc:
+        return _bad_request(str(exc))
+    except detector.DetectorUnavailable as exc:
+        return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
+
+    content_id = uuid.uuid4().hex
+    guess = "unsure"
+    confidence = 0.5
+    label = "PLACEHOLDER — label not written yet."
+
+    audit.log_decision(
+        content_id=content_id,
+        creator_id=creator_id,
+        guess=guess,
+        model_score=model_score,
+        style_score=None,
+        combined_score=confidence,
+        label=label,
+    )
+
     return jsonify({
-        "error": "not_implemented",
-        "message": "POST /submit isn't built yet — see the TODO in app.py.",
-        "you_sent": {
-            "text_length": len(payload.get("text", "")),
-            "creator_id": payload.get("creator_id"),
-        },
-    }), 501
+        "content_id": content_id,
+        "guess": guess,
+        "confidence": confidence,
+        "label": label,
+        "model_score": model_score,
+        "style_score": None,
+    }), 200
 
 
 @app.post("/appeal")
@@ -234,12 +275,11 @@ def appeal():
     """
     payload = request.get_json(silent=True) or {}
 
-    # TODO: delete this and build the route.
-    return jsonify({
-        "error": "not_implemented",
-        "message": "POST /appeal isn't built yet — see the TODO in app.py.",
-        "you_sent": payload,
-    }), 501
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({
+            "error": "bad_request",
+            "message": "Send JSON with a non-empty \"text\"."
+        }), 400
 
 
 # ── Already works ─────────────────────────────────────────────────────────────
