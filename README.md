@@ -117,11 +117,12 @@ Clear AI and clear human are 0.68 apart. Edited AI ends up in unsure, so it gets
 
 | Label | Score range | The exact text a reader sees |
 |---|---|---|
-| high-confidence human |  |  |
-| unsure |  |  |
-| high-confidence AI |  |  |
+| high-confidence human | 0.00 – 0.35 | We think this was probably written by a person. |
+| unsure | 0.35 – 0.65 | We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything. |
+| high-confidence AI | 0.65 – 1.00 | This might have been written with AI, but we can get this wrong, especially with plain, simple writing. If you wrote it yourself, you can ask for a person to take another look. |
 
 **Why I worded the "unsure" one this way:**
+I wanted it to say "we don't know" without sounding like "we think you cheated". So it says outright that it doesn't mean there's a problem and that you don't have to do anything. A writer who got this on their own work shouldn't feel like they have to defend themselves. I also kept the word "AI" in there once because otherwise it's too vague to mean anything. The AI label is the scary one, so it admits we can get it wrong (especially for plain writing, which is what the detector is worst at) and points to the appeal.
 <!-- It's the hardest of the three. It has to admit uncertainty without
      sounding like an accusation, because the person reading it may well have
      written every word themselves. -->
@@ -145,11 +146,18 @@ Clear AI and clear human are 0.68 apart. Edited AI ends up in unsure, so it gets
 ```bash
 $ curl -X POST http://127.0.0.1:5000/submit \
   -H "Content-Type: application/json" \
-  -d '{"text": "...", "creator_id": "..."}'
+  -d '{"text": "The implementation of the proposed framework requires careful consideration of several key factors. First, it is important to note that the system must be able to handle a wide variety of different inputs. Additionally, the overall performance of the solution depends on a number of important variables. Finally, it is essential to ensure that the system remains robust and scalable over time.", "creator_id": "ai1"}'
 ```
 
 ```json
-
+{
+  "confidence": 0.8747,
+  "content_id": "8b5adf7075cc44beb3390fae2733f063",
+  "guess": "ai",
+  "label": "This might have been written with AI, but we can get this wrong, especially with plain, simple writing. If you wrote it yourself, you can ask for a person to take another look.",
+  "model_score": 0.908,
+  "style_score": 0.8414
+}
 ```
 
 **An appeal**
@@ -157,21 +165,45 @@ $ curl -X POST http://127.0.0.1:5000/submit \
 ```bash
 $ curl -X POST http://127.0.0.1:5000/appeal \
   -H "Content-Type: application/json" \
-  -d '{"content_id": "...", "reasoning": "..."}'
+  -d '{"content_id": "8b5adf7075cc44beb3390fae2733f063", "reasoning": "I wrote this myself for a class."}'
 ```
 
 ```json
-
+{
+  "content_id": "8b5adf7075cc44beb3390fae2733f063",
+  "message": "We got your appeal. A person will look at this decision again.",
+  "status": "under_review"
+}
 ```
 
 **What the log shows afterwards**
 
 ```bash
-$ curl "http://127.0.0.1:5000/log?limit=3"
+$ curl "http://127.0.0.1:5000/log"
 ```
 
-```json
+Entries for this content_id (the first is the original decision, the second is the appeal after it):
 
+```json
+{
+  "timestamp": "2026-11-03T01:59:10+00:00",
+  "content_id": "8b5adf7075cc44beb3390fae2733f063",
+  "creator_id": "ai1",
+  "guess": "ai",
+  "model_score": 0.908,
+  "style_score": 0.8414,
+  "combined_score": 0.8747,
+  "label": "This might have been written with AI, but we can get this wrong, especially with plain, simple writing. If you wrote it yourself, you can ask for a person to take another look.",
+  "status": "decided"
+}
+{
+  "timestamp": "2026-11-03T01:59:11+00:00",
+  "content_id": "8b5adf7075cc44beb3390fae2733f063",
+  "creator_id": "ai1",
+  "event": "appeal",
+  "status": "under_review",
+  "reasoning": "I wrote this myself for a class."
+}
 ```
 
 ---

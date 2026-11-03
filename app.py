@@ -217,8 +217,7 @@ def submit():
     if len(text) > config.MAX_TEXT_CHARS:
         return _bad_request(f"\"text\" is over {config.MAX_TEXT_CHARS} characters.")
 
-    # Milestone 4: both signals, combined. The label is still a placeholder
-    # until Milestone 5.
+    # Both signals, combined, then turned into the words the writer reads.
     import detector
     import scoring
     import stylometry
@@ -234,8 +233,7 @@ def submit():
     confidence = scoring.combine_signals(model_score, style_score)
 
     content_id = uuid.uuid4().hex
-    guess = "unsure"
-    label = "PLACEHOLDER — label not written yet."
+    guess, label = scoring.score_to_label(confidence)
 
     audit.log_decision(
         content_id=content_id,
@@ -277,13 +275,39 @@ def appeal():
     to the person on the other end. It's the only thing standing between a
     wrong accusation and nothing at all.
     """
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return _bad_request("Send a JSON object with \"content_id\" and \"reasoning\".")
 
-    if not isinstance(text, str) or not text.strip():
+    content_id = payload.get("content_id")
+    reasoning = payload.get("reasoning")
+
+    if not isinstance(content_id, str) or not content_id.strip():
+        return _bad_request("Send a non-empty string in \"content_id\".")
+    if not isinstance(reasoning, str) or not reasoning.strip():
+        return _bad_request("Send a non-empty string in \"reasoning\".")
+
+    # An unknown id is a 404, never a quiet 200. A typo here would otherwise
+    # look exactly like a working appeal.
+    history = audit.entries_for(content_id)
+    decision = next((e for e in history if "event" not in e), None)
+    if decision is None:
         return jsonify({
-            "error": "bad_request",
-            "message": "Send JSON with a non-empty \"text\"."
-        }), 400
+            "error": "not_found",
+            "message": "We couldn't find a submission with that content_id.",
+        }), 404
+
+    audit.log_appeal(
+        content_id=content_id,
+        creator_id=decision["creator_id"],
+        reasoning=reasoning.strip(),
+    )
+
+    return jsonify({
+        "content_id": content_id,
+        "status": "under_review",
+        "message": "We got your appeal. A person will look at this decision again.",
+    }), 200
 
 
 # ── Already works ─────────────────────────────────────────────────────────────
