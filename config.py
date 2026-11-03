@@ -61,6 +61,13 @@ MAX_TEXT_CHARS = 20_000
 WEIGHT_MODEL_SIGNAL = 0.5
 WEIGHT_STYLE_SIGNAL = 0.5
 
+# If the two signals are further apart than this, they genuinely disagree, and
+# the combined score is held inside DISAGREEMENT_BAND (always the unsure range).
+# Plain human writing is the case this is for: signal one calls it AI, signal
+# two calls it human, and neither should get to decide alone.
+DISAGREEMENT_GAP = 0.40
+DISAGREEMENT_BAND = (0.40, 0.60)
+
 
 # ─── Thresholds (Milestone 5) ────────────────────────────────────────────────
 # Where one label becomes another. Scores run 0.0 (confidently human) to 1.0

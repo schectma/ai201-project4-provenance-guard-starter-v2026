@@ -45,6 +45,17 @@ def words(text: str) -> list[str]:
     return re.findall(r"[a-z0-9']+", text.lower())
 
 
+NEUTRAL_SPREAD = 0.45   # returned when there aren't two sentences to compare
+NEUTRAL_TTR = 0.75
+TTR_WINDOW = 50
+
+
+def _ramp(value: float, human_at: float, ai_at: float) -> float:
+    """Straight line from 0.0 at `human_at` to 1.0 at `ai_at`, clipped."""
+    frac = (value - human_at) / (ai_at - human_at)
+    return min(max(frac, 0.0), 1.0)
+
+
 # ── The three measures — YOU BUILD THESE ─────────────────────────────────────
 
 def sentence_length_spread(text: str) -> float:
@@ -64,8 +75,16 @@ def sentence_length_spread(text: str) -> float:
     `stdev` raises on fewer than two values. Decide what that should return
     before the attack set decides for you.
     """
-    # TODO: replace this
-    return 0.0
+    # Coefficient of variation of sentence length in words: stdev / mean.
+    # Higher = lumpier = more human. Roughly 0.2 for even AI prose, 0.6+ for
+    # people. One sentence has no spread to measure, so it returns the middle
+    # of that range instead of a number that would push the score either way.
+    lengths = [len(words(sent)) for sent in sentences(text)]
+    lengths = [n for n in lengths if n > 0]
+    if len(lengths) < 2:
+        return NEUTRAL_SPREAD
+    mean = statistics.mean(lengths)
+    return statistics.stdev(lengths) / mean
 
 
 def type_token_ratio(text: str) -> float:
@@ -80,8 +99,19 @@ def type_token_ratio(text: str) -> float:
     directly comparable on it, and if your test inputs vary a lot in length,
     that alone can look like a signal.
     """
-    # TODO: replace this
-    return 0.0
+    # Averaged over 50-word windows so a long text isn't punished for having
+    # more repeats than a short one. Under 50 words it's just the whole text.
+    # Higher = more varied vocabulary = more human.
+    toks = words(text)
+    if not toks:
+        return NEUTRAL_TTR
+    if len(toks) <= TTR_WINDOW:
+        return len(set(toks)) / len(toks)
+    ratios = [
+        len(set(toks[i:i + TTR_WINDOW])) / TTR_WINDOW
+        for i in range(0, len(toks) - TTR_WINDOW + 1, TTR_WINDOW // 2)
+    ]
+    return statistics.mean(ratios)
 
 
 def punctuation_density(text: str) -> float:
@@ -94,8 +124,15 @@ def punctuation_density(text: str) -> float:
         more interesting than full stops, because they vary more between
         writers.
     """
-    # TODO: replace this
-    return 0.0
+    # Marks other than sentence enders, per word. Full stops are left out on
+    # purpose: they just track sentence count. Semicolons, dashes, colons,
+    # parentheses, quotes and the like vary more between writers.
+    # Higher = more punctuation play = more human.
+    toks = words(text)
+    if not toks:
+        return 0.0
+    marks = re.findall(r"[,;:()\"—–\-!?]", text)
+    return len(marks) / len(toks)
 
 
 # ── Combining them ───────────────────────────────────────────────────────────
@@ -122,8 +159,17 @@ def style_signal(text: str) -> float:
     you trust it. Plain and ordinary, not formal: formal prose reads as *human*
     to signal one, and it is plain writing that gets accused.
     """
-    # TODO: replace this
-    return 0.5
+    # Each measure is squashed onto 0-1 so none wins just by having bigger
+    # raw numbers, and flipped so that HIGH = MORE AI-LIKE. All three raw
+    # measures point the other way (higher = more human), so all three flip.
+    spread_ai = _ramp(sentence_length_spread(text), human_at=0.65, ai_at=0.20)
+    ttr_ai = _ramp(type_token_ratio(text), human_at=0.85, ai_at=0.60)
+    punct_ai = _ramp(punctuation_density(text), human_at=0.15, ai_at=0.03)
+
+    # Sentence rhythm is the measure I trust most; vocabulary variety is the
+    # shakiest (it still moves with length and topic), so it counts least.
+    score = 0.5 * spread_ai + 0.2 * ttr_ai + 0.3 * punct_ai
+    return round(min(max(score, 0.0), 1.0), 4)
 
 
 if __name__ == "__main__":

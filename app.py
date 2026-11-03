@@ -217,9 +217,11 @@ def submit():
     if len(text) > config.MAX_TEXT_CHARS:
         return _bad_request(f"\"text\" is over {config.MAX_TEXT_CHARS} characters.")
 
-    # Milestone 3: only signal one is wired in. Confidence and label are
-    # placeholders until Milestones 4 and 5.
+    # Milestone 4: both signals, combined. The label is still a placeholder
+    # until Milestone 5.
     import detector
+    import scoring
+    import stylometry
 
     try:
         model_score = detector.model_signal(text)
@@ -228,9 +230,11 @@ def submit():
     except detector.DetectorUnavailable as exc:
         return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
 
+    style_score = stylometry.style_signal(text)
+    confidence = scoring.combine_signals(model_score, style_score)
+
     content_id = uuid.uuid4().hex
     guess = "unsure"
-    confidence = 0.5
     label = "PLACEHOLDER — label not written yet."
 
     audit.log_decision(
@@ -238,7 +242,7 @@ def submit():
         creator_id=creator_id,
         guess=guess,
         model_score=model_score,
-        style_score=None,
+        style_score=style_score,
         combined_score=confidence,
         label=label,
     )
@@ -249,7 +253,7 @@ def submit():
         "confidence": confidence,
         "label": label,
         "model_score": model_score,
-        "style_score": None,
+        "style_score": style_score,
     }), 200
 
 

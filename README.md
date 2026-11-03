@@ -79,9 +79,9 @@
 <!-- Write the rule in words, then give the numbers. What happens when the two
      signals disagree? -->
 
-**The rule:**
+**The rule:** Average the two scores. But if they're really far apart (more than 0.4), don't trust the average either way and squeeze the result into 0.40-0.60, which is the unsure range. Reasoning: two methods that disagree means we don't know. And the thing I'm scared of is signal one calling a plain human writer AI, so I don't want it to be able to decide that alone.
 
-**The numbers:**
+**The numbers:** `WEIGHT_MODEL_SIGNAL = 0.5`, `WEIGHT_STYLE_SIGNAL = 0.5`, `DISAGREEMENT_GAP = 0.40`, `DISAGREEMENT_BAND = (0.40, 0.60)`, all in `config.py`. Thresholds are still `HUMAN_THRESHOLD = 0.35` and `AI_THRESHOLD = 0.65`. Style signal (`stylometry.py::style_signal`) is 0.5 x sentence length spread + 0.3 x punctuation density + 0.2 x vocabulary variety, each scaled to 0-1 and flipped so higher = more AI. Spread counts most because it seemed most reliable, vocabulary least because it still changes with text length and topic.
 
 **Where it lives:** `scoring.py::combine_signals`
 
@@ -89,6 +89,20 @@
      somewhere else, say where. -->
 
 **A case where my two signals split, and what my rule does with it:**
+
+My plain human paragraph ("I moved to this city three years ago for work, and the biggest surprise was how quiet the evenings are. People go home early. On weekends the park fills up, though, and everyone seems to know each other."): `model_score` 0.734, `style_score` 0.191. Signal one says AI because the words are all ordinary. Signal two says human because the sentences are different lengths (a 4 word one next to a long one). They're 0.54 apart, over the 0.4 gap, so the combined score is 0.462, unsure. Without the rule it would've been 0.46 anyway here, but the rule matters when one is like 0.95 and the other 0.45.
+
+Calibration table (all four plus the plain one):
+
+| input | model | style | combined |
+|---|---|---|---|
+| clearly AI | 0.908 | 0.841 | 0.875 |
+| clearly human (casual) | 0.247 | 0.143 | 0.195 |
+| formal human | 0.167 | 0.000 | 0.084 |
+| lightly edited AI | 0.574 | 0.363 | 0.468 |
+| plain human | 0.734 | 0.191 | 0.462 |
+
+Clear AI and clear human are 0.68 apart. Edited AI ends up in unsure, so it gets through. That's a miss, but I'd rather miss it than accuse someone. I only tested one example of each, so these are not solid numbers.
 
 
 
