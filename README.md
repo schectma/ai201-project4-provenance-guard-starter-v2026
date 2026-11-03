@@ -230,25 +230,32 @@ Straight up: Claude Code did most of the building in this project. I gave it eac
 
 ## Rate Limiting
 
-**My limits:** ___ per minute, ___ per day
+**My limits:** 5 per minute, 100 per day
 
 **Why those numbers and not others:**
+A real writer submits maybe a few things an hour, and even if they fix a typo and resubmit, 5 a minute is plenty. 100 a day is way more than a person would do. A script trying to map my thresholds needs hundreds of variations, so 5 a minute slows it to a crawl and 100 a day caps it. I picked these kind of by feel, not from any data. One thing I noticed is each submission takes a second or two on gpt2 anyway, so a flood is also expensive for me, which is another reason to keep it low.
 <!-- Think about two people: a real writer submitting their own work a few
      times an hour, and a script sending a thousand variations to map your
      thresholds. Your numbers have to be liveable for the first and hostile to
      the second. -->
 
-**What a caller counts as:** <!-- per address, or per creator_id? They fail
-differently — one script can look like a thousand callers, and one household
-can look like one. -->
+**What a caller counts as:** The `creator_id` in the request body. If there isn't a usable one (missing, empty, or the body isn't a JSON object) it falls back to the caller's IP address. That's what the starter's `rate_limit_key` already does. The downside is that someone can dodge the limit by just changing `creator_id` every request, since I never check it's a real account. Counting by address would stop that but would lump a whole household or school together.
 
 **The run of status codes when I pushed past it:**
 
-<!-- python run_attacks.py --flood 15 -->
-
+```
+$ python run_attacks.py --flood 15
+200 200 200 200 200 429 429 429 429 429 429 429 429 429 429
+10 of 15 were rate limited.
 ```
 
+First 5 got through, the other 10 got a 429. Full output is in `results/flood_2026-11-02_2107.md`. `GET /health` shows `"rate_limiting": true`, and the log has a rejection entry for each 429, for example:
+
+```json
+{"creator_id": "flood_tester", "event": "rejected", "limit": "5 per 1 minute", "reason": "rate_limited", "status": "rejected", "timestamp": "2026-11-03T02:07:06+00:00"}
 ```
+
+I also changed `app.py` so my own 400s (missing text and so on) get written to the log as `rejected` entries too, using `audit.log_rejection`. Before this they left no trace. Unknown `content_id` appeals get logged the same way.
 
 ---
 

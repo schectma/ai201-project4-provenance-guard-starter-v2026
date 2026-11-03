@@ -148,14 +148,26 @@ def health():
     })
 
 
-def _bad_request(message: str):
+def _bad_request(message: str, reason: str = "bad_request"):
+    """
+    A 400 that still leaves a trace. A refused request is not a decision, so it
+    goes in the log as a rejection with fewer fields, not as a decision entry.
+    """
+    payload = request.get_json(silent=True)
+    creator = payload.get("creator_id") if isinstance(payload, dict) else None
+    audit.log_rejection(
+        creator_id=creator if isinstance(creator, str) and creator.strip() else "unknown",
+        reason=reason,
+        route=request.path,
+        detail=message,
+    )
     return jsonify({"error": "bad_request", "message": message}), 400
 
 
 # ── YOU BUILD THIS ────────────────────────────────────────────────────────────
 
 @app.post("/submit")
-# @limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
+@limiter.limit(f"{config.RATE_LIMIT_PER_MINUTE}/minute;{config.RATE_LIMIT_PER_DAY}/day")
 def submit():
     """
     Take a piece of text, decide about it, log the decision, answer.
@@ -292,6 +304,12 @@ def appeal():
     history = audit.entries_for(content_id)
     decision = next((e for e in history if "event" not in e), None)
     if decision is None:
+        audit.log_rejection(
+            creator_id="unknown",
+            reason="unknown_content_id",
+            route=request.path,
+            content_id=content_id,
+        )
         return jsonify({
             "error": "not_found",
             "message": "We couldn't find a submission with that content_id.",
