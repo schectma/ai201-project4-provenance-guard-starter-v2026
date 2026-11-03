@@ -39,6 +39,13 @@
 <!-- The path a submission takes, from arriving to the label a reader sees.
      Six or seven steps — this is the trace you wrote in Milestone 1. -->
 
+1. Text comes in. Someone's site sends `POST /submit` with `text` and `creator_id` to `app.py::submit`. It makes a `content_id` for it. If the text is missing, empty, or crazy long it sends back a 400 and stops.
+2. Signal one, `detector.py::model_signal`. Runs gpt2 on my laptop and checks how predictable the text is. Gives back `model_score`, 0 to 1, higher = more AI.
+3. Signal two, `stylometry.py::style_signal`. Doesn't read the text, just looks at its shape: sentence lengths, repeated words, punctuation. Gives back `style_score`, same direction.
+4. `scoring.py::combine_signals` squishes the two scores into one `combined_score`.
+5. `scoring.py::score_to_label` turns that number into a guess (ai / human / unsure) and the sentence the writer actually sees.
+6. `audit.py::log_decision` writes it all to `logs/audit.jsonl` (ids, guess, both scores, combined score, label, status `decided`).
+7. The response goes back with `content_id`, guess, confidence, label, and both scores. If the writer thinks it's wrong they hit `POST /appeal` with the `content_id`, and it gets logged and set to `under_review`.
 
 
 ---
@@ -53,19 +60,19 @@
 
 ### Signal one — the model signal
 
-**What it measures:**
+**What it measures:** How predictable the text is to gpt2 (runs locally). It's perplexity, turned into 0-1 where higher = more AI-ish. Code is `detector.py::model_signal`.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** A model writes by picking the likely next word, so another model finds it easy to guess. People are weirder. Random word choices, sudden turns, specific stuff.
 
-**What it can't see:**
+**What it can't see:** Who actually wrote it. It only sees "predictable", and plain writing is predictable too. Someone writing in their second language with safe simple words, a younger writer, or just someone keeping it plain, all look like AI to this thing. Fancy human writing with rare words looks human. It also only reads the first 400 tokens (`DETECTOR_MAX_TOKENS`), so the rest is ignored. And AI text with some weird words stuck in could slip past.
 
 ### Signal two — the style signal
 
-**What it measures:**
+**What it measures:** The shape of the text, not what it says. How much sentence length bounces around, how many words are unique vs repeated, and how much punctuation there is. Code is `stylometry.py::style_signal`.
 
-**Why that might differ between human and AI writing:**
+**Why that might differ between human and AI writing:** AI tends to write even, medium sentences and reuse a smaller set of words. Humans are lumpier, like a 3 word sentence right next to a 40 word one.
 
-**What it can't see:**
+**What it can't see:** The meaning. It can't read at all. So anything that changes the shape without changing the point fools it: typos, chopping sentences up, pasting a quote in. That's cheap to do on purpose. It's also unfair to real people who just write evenly (formal essays, technical writing, really short pieces where the numbers are basically noise).
 
 ### The combining rule
 
