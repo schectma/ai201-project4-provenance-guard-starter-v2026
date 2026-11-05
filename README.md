@@ -380,11 +380,11 @@ Another thing I noticed: all three trials came back with *identical* numbers, to
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. False positives | at most 1 of 10 of my own pieces gets `ai`, every trial | 2 of 10 `ai` (pieces 5 and 8, 0.682 and 0.665) | 2 of 10 `ai` (same two) | 2 of 10 `ai` (same two) |  |
-| 2. Score spread | avg `confidence` of AI group at least 0.3 above human group | AI avg 0.7282, human avg 0.4218, gap 0.3064 | gap 0.3064 | gap 0.3064 |  |
-| 3. Label coverage | `human`, `unsure` and `ai` can each be produced | human, unsure, ai | human, unsure, ai | human, unsure, ai |  |
-| 4. Appeal path | 10/10 appeals change status and get logged, unknown id gives 404 and no appeal entry | 10/10, 404, no entry | 10/10, 404, no entry | 10/10, 404, no entry |  |
-| 5. Bad input | 6/6 bad bodies get 400, no decision logged, /ping and /health still answer | 6/6, 0 decisions added, 200/200 | 6/6, 0 decisions added, 200/200 | 6/6, 0 decisions added, 200/200 |  |
+| 1. False positives | at most 1 of 10 of my own pieces gets `ai`, every trial | 2 of 10 `ai` (pieces 5 and 8, 0.682 and 0.665) | 2 of 10 `ai` (same two) | 2 of 10 `ai` (same two) | **MISSED** (2 > 1 in all three trials) |
+| 2. Score spread | avg `confidence` of AI group at least 0.3 above human group | AI avg 0.7282, human avg 0.4218, gap 0.3064 | gap 0.3064 | gap 0.3064 | **MET**, barely (0.0064 over) |
+| 3. Label coverage | `human`, `unsure` and `ai` can each be produced | human, unsure, ai | human, unsure, ai | human, unsure, ai | **MET** |
+| 4. Appeal path | 10/10 appeals change status and get logged, unknown id gives 404 and no appeal entry | 10/10, 404, no entry | 10/10, 404, no entry | 10/10, 404, no entry | **MET** |
+| 5. Bad input | 6/6 bad bodies get 400, no decision logged, /ping and /health still answer | 6/6, 0 decisions added, 200/200 | 6/6, 0 decisions added, 200/200 | 6/6, 0 decisions added, 200/200 | **MET** |
 
 (Criterion 1: the other 8 pieces all came back `unsure`, with `confidence` between 0.530 and 0.616. None of them got `human`. Criterion 2: the 5 AI texts scored 0.8747, 0.6683, 0.7436, 0.6805, 0.6738; the 5 human texts scored 0.5036, 0.5364, 0.3954, 0.3701, 0.3034. Only one of the 5 human texts got the `human` label. The Verdict column gets filled in Milestone 4.)
 
@@ -486,23 +486,37 @@ Appeal path and the non-JSON check, trial 1, from `results/extra_checks_2026-11-
 }
 ```
 
+**Verdicts** (a criterion is MET only if the target held in all three trials):
+
+- **1 MISSED.** 2 of 10 of my own pieces got `ai`, in every trial. The target was at most 1. I'm not lowering it. Diagnosis below.
+- **2 MET, but barely.** The gap is 0.3064 against a target of 0.3. The reason I gave for 0.3 was that the two groups should land on different sides of the unsure band. They do not: the human average (0.4218) is inside the 0.35 to 0.65 band, and 4 of the 5 human texts got `unsure`. So the number passes and the reason behind the number does not. I'm calling it MET because the criterion as written is only the number, and I'm not going to rewrite it to look better.
+- **3 MET, 4 MET, 5 MET.** Each held in all three trials. For 3, I should be honest that I used three hand picked texts from the attack set (one per label). `human` is hard to get: in my 15 human pieces (10 own writing + 5 clear human) only 1 got it.
+- No revisions to `criteria.md`. All five were measurable, so none count as "broken", and I did not lower any number.
+
 **Diagnoses**
 
-<!-- For each miss AND each broken attack: the stage and the mechanism.
+Each one has a stage (route, signal one, signal two, combining rule, label mapping) and the mechanism. I got the feature numbers by calling the functions in `stylometry.py` on the failing texts (`sentence_length_spread`, `type_token_ratio`, `punctuation_density`).
 
-     Your service has five stages: the route, signal one, signal two, the
-     combining rule, and the label mapping.
+**D1. Criterion 1 miss, and 6 of 8 `false_positive` attacks (FP02 to FP07): plain or formal human writing gets `ai`.**
+- *Stages:* signal two (`stylometry.py::style_signal`), signal one (`detector.py::model_signal`), and the label mapping (`scoring.py::score_to_label`).
+- *Mechanism:* both of my failing pieces (piece 5 "school start times"/"estimating", piece 8 "the lake") came back with `style_score` 0.6764 and `model_score` 0.688 and 0.6545. Piece 5 has `punctuation_density` 0.000, it has no commas or dashes at all, and the code turns that into a full 1.0 "AI-like" on the punctuation part (`_ramp(..., human_at=0.15, ai_at=0.03)`, weighted 0.3). Its sentence-length spread is 0.31 (the ramp goes human at 0.65, AI at 0.20), so that part reads about 0.78 AI-like. So a person who writes short plain sentences without commas looks like a machine to my second signal. FP03 (the careful non-native writer) is the same: punctuation 0.000, spread 0.33, `style_score` 0.698. gpt2 also finds plain writing predictable, so signal one agrees, and agreeing signals means `combine_signals` never reaches the disagreement band. Final scores of 0.665 and 0.682 sit just over `AI_THRESHOLD` 0.65, so the label mapping turns "slightly above the line" into a full accusation. The other 8 of my pieces sit at 0.53 to 0.62, so the whole group of plain human writing is crowded just under the threshold.
+- *This is one problem, not eight.* It's the one I predicted in `design.md`: both signals have the same blind spot (plain = predictable = AI).
 
-     Not a diagnosis:  "The evasion attacks got through."
-     A diagnosis:      "Four evasion inputs got through. All four had typos
-                        added to AI-generated text. My second signal measures
-                        word variety, and typos raise word variety — so it read
-                        them as more human. My combining rule weights that
-                        signal at 0.6, so it dragged the whole score down."
+**D2. Evasion attacks that worked (EV01, EV02, EV03, EV05, EV06, EV07, EV08, EV09) and the injection attacks PI01, PI02, PI03, PI05.**
+- *Stage:* signal two for most. Signal one for EV01 and EV08.
+- *Mechanism:* signal two measures shape, so changing shape beats it cheaply. EV02 adds "Really." after every sentence: `sentence_length_spread` goes to 0.85 and `style_score` drops to 0.265. EV06 uses one very long and one very short sentence: spread 1.19, `style_score` 0.293. EV07 pads with punctuation: `punctuation_density` 0.227 (the ramp maxes out at 0.15), `style_score` 0.230. The `model_score` for those three stayed at 0.57 to 0.59, so averaging at 0.5/0.5 brought them to 0.41 to 0.43 (`scoring.py::combine_signals`). The prompt injection ones (PI01, PI02, PI03, PI05) have the same AI essay as EV01 with junk in front. My service has no LLM reading the text, so it never "obeyed" the instruction. The added sentences changed the shape: PI02 got spread 0.65 and punctuation 0.044, `style_score` 0.264, `model_score` 0.204, label `human` at 0.234. PI05 has the injected JSON-looking quotes and commas, so `punctuation_density` is 0.533 and `style_score` 0.198.
+- *EV01 (typos) is different.* Typos make gpt2 surprised, so `model_score` dropped to 0.1635, while `style_score` stayed 0.757. The two signals are 0.59 apart, which is over `DISAGREEMENT_GAP` 0.40, so the combining rule clamped it into the 0.40 to 0.60 band, giving 0.4604 `unsure`. That is the rule working as designed, but the result is still an AI essay that got `unsure`.
+- *Pattern:* 10 of the 12 broken evasion and injection attacks are one thing (EV01 and EV08 are the signal-one ones): signal two is easy to move. The same cheap trick on a different input does the same thing. What stops it from being worse is that signal one still usually leans AI, so these end at `unsure` and not `human` (only EV05 and PI02 reached `human`).
 
-     Look for a pattern. Five failures on one signal is one problem, not five. -->
+**D3. MF06 (emoji only, 0.799 `ai`) and MF07 (right-to-left script, 0.754 `ai`).**
+- *Stages:* the route (`app.py::submit`) and signal one.
+- *Mechanism:* the route only checks that `text` is a non-empty string, so anything that isn't English prose goes straight to gpt2. Repeated emoji or non-Latin text gives gpt2 a very predictable (or very odd) token stream, `model_score` 0.9969 and 0.9064. `style_score` is the same 0.6022 for both because there are no English words or sentences to measure, so it falls to the neutral values. Averaged, that crosses 0.65 and a string with no writing in it gets an AI label. A route that checks "does this look like text we can judge" would reject it, or it should be `unsure`.
 
+**D4. RQ10 and RQ11 got 429 where I expected 400.**
+- *Stage:* the route (`app.py::rate_limit_key` and the `@limiter.limit` decorator).
+- *Mechanism:* the limiter key falls back to the remote IP when the body has no usable `creator_id`, and the limiter runs before validation, so rejected junk still counts. RQ02, RQ07, RQ08, RQ09 (all from the same IP, no creator) used up the 5 per minute, then RQ10 and RQ11 were rate limited before the handler ran. So my own limiter hid the validation result for those two, and it also means one person sending garbage could lock out everyone behind the same address. Unrelated to detection, it is a side effect of the Milestone 1 design that I wrote about in the Rate Limiting section.
 
+**Not diagnosed because they held:** the 12 flood attacks (5 allowed then 429s), MF01/02/08, RQ01 to RQ09, RQ12. MF03/MF04 (control characters, punctuation only) got `unsure` at exactly 0.400, a logged decision on text that isn't writing, but not an accusation, so I marked them HELD.
 
 ---
 
