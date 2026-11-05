@@ -1,0 +1,247 @@
+{
+  "produced_by": "extra_checks.py",
+  "when": "2026-11-04T20:52:26",
+  "label": "after",
+  "trials": [
+    {
+      "trial": 1,
+      "criterion_4_appeal": {
+        "appeals_ok": 10,
+        "of": 10,
+        "unknown_id_status": 404,
+        "unknown_id_wrote_appeal": false,
+        "unknown_ok": true,
+        "pass": true,
+        "detail": [
+          {
+            "i": 1,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 2,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 3,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 4,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 5,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 6,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 7,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 8,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 9,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 10,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          }
+        ]
+      },
+      "criterion_5_extra": {
+        "not_json_status": 400,
+        "decision_entries_added": 0,
+        "ping": 200,
+        "health": 200,
+        "pass": true
+      }
+    },
+    {
+      "trial": 2,
+      "criterion_4_appeal": {
+        "appeals_ok": 10,
+        "of": 10,
+        "unknown_id_status": 404,
+        "unknown_id_wrote_appeal": false,
+        "unknown_ok": true,
+        "pass": true,
+        "detail": [
+          {
+            "i": 1,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 2,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 3,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 4,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 5,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 6,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 7,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 8,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 9,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 10,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          }
+        ]
+      },
+      "criterion_5_extra": {
+        "not_json_status": 400,
+        "decision_entries_added": 0,
+        "ping": 200,
+        "health": 200,
+        "pass": true
+      }
+    },
+    {
+      "trial": 3,
+      "criterion_4_appeal": {
+        "appeals_ok": 10,
+        "of": 10,
+        "unknown_id_status": 404,
+        "unknown_id_wrote_appeal": false,
+        "unknown_ok": true,
+        "pass": true,
+        "detail": [
+          {
+            "i": 1,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 2,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 3,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 4,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 5,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 6,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 7,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 8,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 9,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          },
+          {
+            "i": 10,
+            "appeal_status": 200,
+            "response_status": "under_review",
+            "logged": true
+          }
+        ]
+      },
+      "criterion_5_extra": {
+        "not_json_status": 400,
+        "decision_entries_added": 0,
+        "ping": 200,
+        "health": 200,
+        "pass": true
+      }
+    }
+  ]
+}

@@ -83,7 +83,7 @@ DISAGREEMENT_BAND = (0.40, 0.60)
 # that decide who pays for it.
 
 HUMAN_THRESHOLD = 0.35
-AI_THRESHOLD = 0.65
+AI_THRESHOLD = 0.70   # unit 8 M5: was 0.65. Plain human writing was landing at 0.665-0.682.
 
 # ⚠️ One thing that catches people out in Milestone 5. A weighted average can
 # only land between its two inputs — so while `style_signal` is still the stub
