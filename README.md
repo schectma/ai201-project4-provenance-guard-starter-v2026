@@ -372,21 +372,118 @@ FP03, "a non-native English speaker writing carefully". It's real human writing 
 
 ## Run Log and Verdicts
 
-<!-- Your five criteria across three trials. `run_eval.py --label before`. -->
+I wrote `scenarios.py` for my five criteria and ran `python run_eval.py --label before` (3 trials). Criteria 1, 2, 3 and 5 are in `scenarios.py`. The `bodies` format can't say "this body isn't JSON" and can't do a submit-then-appeal, so criterion 4 and the non-JSON part of criterion 5 are in a new file, `extra_checks.py` (run 3 times, `--label before`). Files: `results/run_2026-11-04_2043_before.md` (from `run_eval.py::main`) and `results/extra_checks_2026-11-04_2044_before.json` (from `extra_checks.py::main`).
+
+One honest thing: the 10 "my own writing" pieces in `scenarios.py` are written in the style of my own plain writing but were drafted with Claude's help, not copied from my actual essays. The 5 AI pieces are AI generated. The 5 human pieces are also plain student style writing.
+
+Another thing I noticed: all three trials came back with *identical* numbers, to four decimals. gpt2 on CPU with no sampling is deterministic, so the "three trials" idea of the model giving different answers did not show up for me. That does not make it a free pass, it just means the three runs say the same thing.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |
+| 1. False positives | at most 1 of 10 of my own pieces gets `ai`, every trial | 2 of 10 `ai` (pieces 5 and 8, 0.682 and 0.665) | 2 of 10 `ai` (same two) | 2 of 10 `ai` (same two) |  |
+| 2. Score spread | avg `confidence` of AI group at least 0.3 above human group | AI avg 0.7282, human avg 0.4218, gap 0.3064 | gap 0.3064 | gap 0.3064 |  |
+| 3. Label coverage | `human`, `unsure` and `ai` can each be produced | human, unsure, ai | human, unsure, ai | human, unsure, ai |  |
+| 4. Appeal path | 10/10 appeals change status and get logged, unknown id gives 404 and no appeal entry | 10/10, 404, no entry | 10/10, 404, no entry | 10/10, 404, no entry |  |
+| 5. Bad input | 6/6 bad bodies get 400, no decision logged, /ping and /health still answer | 6/6, 0 decisions added, 200/200 | 6/6, 0 decisions added, 200/200 | 6/6, 0 decisions added, 200/200 |  |
+
+(Criterion 1: the other 8 pieces all came back `unsure`, with `confidence` between 0.530 and 0.616. None of them got `human`. Criterion 2: the 5 AI texts scored 0.8747, 0.6683, 0.7436, 0.6805, 0.6738; the 5 human texts scored 0.5036, 0.5364, 0.3954, 0.3701, 0.3034. Only one of the 5 human texts got the `human` label. The Verdict column gets filled in Milestone 4.)
 
 **Real output from one trial**, pasted as text, naming the file and function
 that produced it:
 
-```json
+From `results/run_2026-11-04_2043_before.md`, written by `run_eval.py::main`. This is trial 1 of "my own writing", the two pieces that got `ai` plus piece 1 for comparison (I cut the `label` text off so it fits):
 
+```json
+[
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.6822,
+    "model_score": 0.688,
+    "style_score": 0.6764,
+    "sent": "I think the main thing I learned from this class is that I am bad at e"
+  },
+  {
+    "status": 200,
+    "guess": "ai",
+    "confidence": 0.6654,
+    "model_score": 0.6545,
+    "style_score": 0.6764,
+    "sent": "We got to the lake around noon and the parking was full, so Dad droppe"
+  },
+  {
+    "status": 200,
+    "guess": "unsure",
+    "confidence": 0.6079,
+    "model_score": 0.5186,
+    "style_score": 0.6972,
+    "sent": "hey, i cant make it to the group meeting thursday because my shift got"
+  }
+]
+```
+
+Bad input, trial 1 (same file, `run_eval.py::main`, the "bad input" scenario). All five bodies got 400:
+
+```json
+[
+  {
+    "status": 400,
+    "sent": "{\"creator_id\": \"eval_bad_missing\"}"
+  },
+  {
+    "status": 400,
+    "sent": "(empty text)"
+  },
+  {
+    "status": 400,
+    "sent": "   "
+  },
+  {
+    "status": 400,
+    "sent": "{\"text\": 12345, \"creator_id\": \"eval_bad_number\"}"
+  },
+  {
+    "status": 400,
+    "sent": "word word word word word word word word word word word word word word "
+  }
+]
+```
+
+Appeal path and the non-JSON check, trial 1, from `results/extra_checks_2026-11-04_2044_before.json`, written by `extra_checks.py::main` (I cut the per-appeal detail down to two of the ten):
+
+```json
+{
+  "trial": 1,
+  "criterion_4_appeal": {
+    "appeals_ok": 10,
+    "of": 10,
+    "unknown_id_status": 404,
+    "unknown_id_wrote_appeal": false,
+    "unknown_ok": true,
+    "pass": true,
+    "detail": [
+      {
+        "i": 1,
+        "appeal_status": 200,
+        "response_status": "under_review",
+        "logged": true
+      },
+      {
+        "i": 2,
+        "appeal_status": 200,
+        "response_status": "under_review",
+        "logged": true
+      }
+    ]
+  },
+  "criterion_5_extra": {
+    "not_json_status": 400,
+    "decision_entries_added": 0,
+    "ping": 200,
+    "health": 200,
+    "pass": true
+  }
+}
 ```
 
 **Diagnoses**
