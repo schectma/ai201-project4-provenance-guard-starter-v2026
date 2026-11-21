@@ -414,3 +414,86 @@ System: Provenance Guard (Project 4). New in this unit: a hardening layer on `/s
 B, harden against failure. I added the failure handling and the criteria are about the bad path (timeout, rejected input, logging of failures) plus latency.
 
 Out of scope: I'm not changing the detector model, the thresholds or the scoring rule; I'm not adding a third signal; I'm not rebuilding `/appeal` or the rate limiter; I'm not moving to a real queue or process pool to kill timed-out work (a timed-out scoring job still finishes in the background).
+
+
+**Running It**
+
+Path B (local with logs). Start command `python app.py`; details, environment and clean-checkout steps are in [RUNNING.md](RUNNING.md). I cloned the repo into a fresh folder and brought up the app from the clone (`/health` and `/ping` answered). I did not reinstall the pinned dependencies in a fresh venv, so that part of RUNNING.md is untested.
+
+**Instrumentation**
+
+Each `logs/audit.jsonl` record is one JSON object. Decisions hold `timestamp, content_id, creator_id, guess, model_score, style_score, combined_score, label, status, input_chars, duration_ms`. Failures hold `timestamp, creator_id, event="rejected", status, reason, http_status, input_chars, duration_ms`. `input_chars` is the length of the input (the output is the scores and label). Ten real decision entries (`results/capstone_log_cost.jsonl`, from the cost run):
+
+```
+{"timestamp": "2026-11-21T23:42:12+00:00", "content_id": "33ee06de0e774a1d84f8f4bf909d6478", "creator_id": "cost", "guess": "unsure", "model_score": 0.3465, "style_score": 0.6964, "combined_score": 0.5214, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 627, "duration_ms": 194.4}
+{"timestamp": "2026-11-21T23:42:12+00:00", "content_id": "58a98bcf93d84edbb3ddf9376da01fa9", "creator_id": "cost", "guess": "unsure", "model_score": 0.3544, "style_score": 0.783, "combined_score": 0.5687, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 637, "duration_ms": 175.9}
+{"timestamp": "2026-11-21T23:42:12+00:00", "content_id": "fefeadef94c849a687bd936401070f54", "creator_id": "cost", "guess": "unsure", "model_score": 0.342, "style_score": 0.7957, "combined_score": 0.5688, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 639, "duration_ms": 167.4}
+{"timestamp": "2026-11-21T23:42:12+00:00", "content_id": "0499d71511bb4519a3de52f30d8d38d8", "creator_id": "cost", "guess": "unsure", "model_score": 0.4191, "style_score": 0.7724, "combined_score": 0.5958, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 639, "duration_ms": 171.6}
+{"timestamp": "2026-11-21T23:42:12+00:00", "content_id": "a76f8f2c835d4cf5903f172e55f50d03", "creator_id": "cost", "guess": "unsure", "model_score": 0.3937, "style_score": 0.7014, "combined_score": 0.5475, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 637, "duration_ms": 173.9}
+{"timestamp": "2026-11-21T23:42:12+00:00", "content_id": "d7a37c2f5f4143ac86614ca951cc51d8", "creator_id": "cost", "guess": "unsure", "model_score": 0.2668, "style_score": 0.675, "combined_score": 0.4709, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 634, "duration_ms": 174.6}
+{"timestamp": "2026-11-21T23:42:13+00:00", "content_id": "9836eaf2ae70459d9fa8440ecebd421e", "creator_id": "cost", "guess": "unsure", "model_score": 0.2493, "style_score": 0.7614, "combined_score": 0.5053, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 631, "duration_ms": 190.9}
+{"timestamp": "2026-11-21T23:42:13+00:00", "content_id": "3790f84279724ceaae1f4ecc019e4188", "creator_id": "cost", "guess": "unsure", "model_score": 0.3702, "style_score": 0.6686, "combined_score": 0.5194, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 628, "duration_ms": 179.0}
+{"timestamp": "2026-11-21T23:42:13+00:00", "content_id": "f781bf8c74484387b71e59170e14c21b", "creator_id": "cost", "guess": "unsure", "model_score": 0.2563, "style_score": 0.6627, "combined_score": 0.4595, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 631, "duration_ms": 191.8}
+{"timestamp": "2026-11-21T23:42:13+00:00", "content_id": "505a52dd9047498d9906c4866f23569f", "creator_id": "cost", "guess": "unsure", "model_score": 0.3952, "style_score": 0.6863, "combined_score": 0.5408, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided", "input_chars": 635, "duration_ms": 260.4}
+```
+
+Failed runs from the same harness (`results/capstone_log_before_trial1.jsonl`): bad input, and a timeout:
+
+```
+{"timestamp": "2026-11-21T23:38:33+00:00", "creator_id": "t", "event": "rejected", "status": "rejected", "reason": "bad_request", "http_status": 400, "input_chars": null, "duration_ms": 0.1}
+{"timestamp": "2026-11-21T23:38:33+00:00", "creator_id": "t", "event": "rejected", "status": "rejected", "reason": "bad_request", "http_status": 400, "input_chars": 0, "duration_ms": 0.1}
+{"timestamp": "2026-11-21T23:38:33+00:00", "creator_id": "t", "event": "rejected", "status": "rejected", "reason": "bad_request", "http_status": 400, "input_chars": 3, "duration_ms": 0.1}
+{"timestamp": "2026-11-21T23:38:33+00:00", "creator_id": "t", "event": "rejected", "status": "rejected", "reason": "detector_timeout", "http_status": 504, "input_chars": 633, "duration_ms": 17.6}
+```
+
+Not covered: 429 rate-limit rejections are logged by the older handler in `app.py` and do not have `duration_ms` or `input_chars`.
+
+**What It Costs**
+
+Measured with `python capstone_run.py --cost`: 10 warm submissions through `/submit`, timed with `time.perf_counter` (wall) and `time.process_time` (CPU, all threads). No API spend; gpt2 runs locally. Per run: mean 0.190 s wall, mean 2.44 s CPU (runs 2.1 to 2.8). CPU is much larger than wall because torch uses several cores at once. Hundred-people-a-day arithmetic: assume 5 submissions each, 100 x 5 = 500 runs/day; 500 x 0.19 s = 95 s of wall time and 500 x 2.44 s = 1,220 CPU-seconds (about 20 minutes of one core's work) per day, which one laptop handles.
+
+**Run Log and Verdicts**
+
+Three trials per criterion, run by `capstone_run.py` (fresh process per label, trials 1 to 3 in one process, model warmed). Criteria are in `criteria.md` (Capstone section), committed in "add capstone criteria" before any results; the first results commit is "capstone: first results (before improvement)". Results file: `results/capstone_before_cpu_2026-11-21_1840.md` (re-run with the CPU metric; the earlier `capstone_before_*.md` from the first run is identical in verdicts).
+
+| Criterion | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|
+| 1. Every failed request logged (8 of 8) | 8/8 | 8/8 | 8/8 | MET |
+| 2. Timeout -> fast 504, logged (5 of 5) | 5/5 | 5/5 | 5/5 | MET |
+| 3. Recovery after timeouts (3 of 3) | 3/3 | 3/3 | 3/3 | MET |
+| 4. Warm latency (median<=3000, max<=6000 ms) | median 176ms max 182ms | median 170ms max 180ms | median 174ms max 195ms | MET |
+| 5. Logged duration honest (9 of 10) | 10/10 | 10/10 | 10/10 | MET |
+
+All five met. Real output (from `capstone_log_before_trial1.jsonl`, written by `app.py::submit`; the harness is `capstone_run.py::crit1/crit2`): the rejected/timeout/decision lines pasted under Instrumentation above, plus these timings from trial 1 of the first run: timeouts answered in `504 20ms, 15ms, 13ms, 8ms, 20ms`; warm durations `[180, 180, 180, 198, 202, 190, 200, 207, 206, 183]` ms against caller wall times `[183, 182, 182, 201, 204, 193, 202, 209, 208, 186]` ms.
+
+Misses: none, so no diagnosis of a miss. Honest read: my targets were set low. Criterion 4 allowed 3000 ms median and runs came in at about 175 ms, a 17x margin that would not catch a 10x slowdown. Criterion 2's "under 1 s" was met at about 15 ms. The thing the criteria did not see: timed-out requests are answered in about 10 ms but the model keeps running in the background (CPU measurement below).
+
+**The Improvement**
+
+What I changed: `app.py::_run_with_timeout` now sets a cancel flag on timeout, and `detector.py::perplexity` checks it just before the model forward pass and skips the work. Why: the harness's CPU measurement showed 5 timed-out requests burned about 10 CPU-seconds in the background after the client was already told 504 (`orphan_cpu` 10.31 / 12.28 / 10.23 s in the before-run). Stage: the timeout wrapper in `app.py`; mechanism: Python threads cannot be killed, so a timed-out scoring job runs to completion.
+
+Second run log, same format (`results/capstone_after_2026-11-21_1841.md`):
+
+| Criterion | Run 1 | Run 2 | Run 3 | Verdict |
+|---|---|---|---|---|
+| 1. Every failed request logged (8 of 8) | 8/8 | 8/8 | 8/8 | MET |
+| 2. Timeout -> fast 504, logged (5 of 5) | 5/5 | 5/5 | 5/5 | MET |
+| 3. Recovery after timeouts (3 of 3) | 3/3 | 3/3 | 3/3 | MET |
+| 4. Warm latency (median<=3000, max<=6000 ms) | median 173ms max 192ms | median 174ms max 188ms | median 183ms max 216ms | MET |
+| 5. Logged duration honest (9 of 10) | 10/10 | 10/10 | 10/10 | MET |
+
+Orphan CPU after the change: 11.22 / 10.52 / 10.80 s per trial, versus 10.31 / 12.28 / 10.23 before. **It did not help.** I then measured the pieces: one scoring call costs about 1.4 CPU-seconds and 8 idle seconds with the model loaded costs about 1.4 CPU-seconds (torch's thread pool keeps spinning). So the orphan figure is mostly 5 jobs x 1.4 CPU-s plus idle spin, and the cancel check does not stop them because the worker thread has already passed the check (tokenizing takes under a millisecond) by the time the timeout fires. Nothing got worse: criteria 1 to 5 stayed MET. Cancelling mid-forward-pass would need a separate process I can kill, which I did not build.
+
+**What's Still Broken**
+
+Orphaned scoring work after a timeout: I'd run scoring in a worker process (or a bounded single worker queue) so a timed-out job can be killed or at least not piled up. I stopped because it is a bigger change than the unit's 90-minute build limit and all five criteria were already met. The cut: process-based scoring (scope in The Shape).
+
+All five met, so the target to tighten: criterion 4 from "median at most 3000 ms, max at most 6000 ms" to "median at most 400 ms, max at most 1000 ms" (observed about 175 ms and 215 ms, so this still leaves room but would catch a real regression). Also 429 rejections still lack `duration_ms` and `input_chars`.
+
+First thing I'd do next with another unit: process-based scoring with a kill on timeout, because it is the only measured cost (CPU burned after the user already got an error) that my current design cannot remove.
+
+**How I Used AI**
+
+Moment 1: I asked Claude which of my four systems would be easiest to extend for this capstone. It compared them (logging, service layer, test harness already existing) and picked Provenance Guard. I went with it; I changed nothing about the recommendation.
+
+Moment 2: I asked Claude to do the capstone work. It wrote the timeout and logging layer, the criteria, the test harness and the write-up, and ran the three-trial test. Its first improvement (cancel flag) did not reduce the CPU number; Claude measured why and I kept the result as a failed improvement rather than rewording it. Note: I let the AI write the criteria, which the brief says not to do; the criteria and this section were AI-written at my instruction.
