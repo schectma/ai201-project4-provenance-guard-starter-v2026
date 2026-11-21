@@ -82,7 +82,7 @@ def _load():
     return _model, _tokenizer
 
 
-def perplexity(text: str) -> float:
+def perplexity(text: str, cancel=None) -> float:
     """
     How surprised the model is by this text. Lower means more predictable.
 
@@ -106,6 +106,10 @@ def perplexity(text: str) -> float:
     if input_ids.shape[1] < 3:
         raise ValueError("Text is too short to score — a few sentences at least.")
 
+    # Capstone: caller already timed out and told the user 504 — don't burn CPU.
+    if cancel is not None and cancel.is_set():
+        raise InterruptedError("cancelled before scoring")
+
     with torch.no_grad():
         output = model(input_ids, labels=input_ids)
 
@@ -113,7 +117,7 @@ def perplexity(text: str) -> float:
     return float(math.exp(output.loss.item()))
 
 
-def model_signal(text: str) -> float:
+def model_signal(text: str, cancel=None) -> float:
     """
     The signal, as a 0–1 score. **Higher means more likely AI.**
 
@@ -125,7 +129,7 @@ def model_signal(text: str) -> float:
     inputs in Milestone 4 and seen what your own text actually scores. If you
     do, say so in your README: it's a scoring decision, not a detail.
     """
-    ppl = perplexity(text)
+    ppl = perplexity(text, cancel)
 
     midpoint = 45.0    # perplexity that scores 0.5
     steepness = 1.6    # how sharply the score moves either side of it

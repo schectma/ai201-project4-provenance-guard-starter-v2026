@@ -157,10 +157,11 @@ def _run_with_timeout(fn, arg, timeout_s):
     but the caller gets its answer on time.
     """
     box = {}
+    cancel = threading.Event()
 
     def work():
         try:
-            box["value"] = fn(arg)
+            box["value"] = fn(arg, cancel)
         except BaseException as exc:  # noqa: BLE001
             box["error"] = exc
 
@@ -168,6 +169,7 @@ def _run_with_timeout(fn, arg, timeout_s):
     t.start()
     t.join(timeout_s)
     if t.is_alive():
+        cancel.set()  # worker checks this before the expensive model pass
         raise TimeoutError
     if "error" in box:
         raise box["error"]
