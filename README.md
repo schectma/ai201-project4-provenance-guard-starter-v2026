@@ -401,3 +401,16 @@ that produced it:
 ---
 
 📖 **How to run this project: [RUNNING.md](RUNNING.md)**
+
+
+## Capstone
+
+**What This Extends**
+
+System: Provenance Guard (Project 4). New in this unit: a hardening layer on `/submit` in `app.py`. (1) A scoring timeout (`config.DETECTOR_TIMEOUT_S`, `_run_with_timeout`) so a slow detector returns a 504 instead of hanging the request. (2) Every failed request (bad input, timeout, detector down, unexpected error) now leaves a `rejected` record in `logs/audit.jsonl`. (3) Every record, success or failure, carries `input_chars` and `duration_ms`. (4) Unexpected exceptions in either signal return a JSON 500 instead of a stack trace.
+
+**The Shape**
+
+B, harden against failure. I added the failure handling and the criteria are about the bad path (timeout, rejected input, logging of failures) plus latency.
+
+Out of scope: I'm not changing the detector model, the thresholds or the scoring rule; I'm not adding a third signal; I'm not rebuilding `/appeal` or the rate limiter; I'm not moving to a real queue or process pool to kill timed-out work (a timed-out scoring job still finishes in the background).
