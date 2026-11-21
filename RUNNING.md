@@ -1,3 +1,36 @@
+# Capstone run path (Path B: local with logs)
+
+**Start command** (one command, from the repo root, with the venv active):
+
+```bash
+python app.py
+```
+
+Full clean-checkout sequence:
+
+```bash
+git clone <repo-url> pg && cd pg
+python -m venv .venv
+.venv/Scripts/activate          # macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+python app.py                   # serves http://127.0.0.1:5000
+```
+
+Check it: `curl http://127.0.0.1:5000/health` then
+`curl -X POST http://127.0.0.1:5000/submit -H "Content-Type: application/json" -d '{"text": "<a few sentences>", "creator_id": "me"}'`.
+Every request, including failures, is appended to `logs/audit.jsonl`.
+
+Environment:
+- Python 3.11-3.13 (tested on 3.13.1). Not 3.14.
+- Dependencies pinned in `requirements.txt` (flask, flask-limiter, requests, torch, transformers).
+- Model: `gpt2` (about 550 MB), downloaded from Hugging Face on first load into the HF cache. Run `python detector.py` once first so the first request is not the slow one (10-20 s, longer than the 20 s default timeout on slow disks).
+- No API key, no account.
+- Rate limit is on: 5/minute, 50/day per creator_id.
+
+Reproduce the capstone test run: `python capstone_run.py` (writes `results/capstone_<label>_<date>.md`).
+
+---
+
 # Running Provenance Guard
 
 Everything about how the starter works.
