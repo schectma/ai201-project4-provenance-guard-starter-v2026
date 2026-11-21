@@ -50,6 +50,11 @@ DETECTOR_MAX_TOKENS = 400
 # the first DETECTOR_MAX_TOKENS tokens anyway, so a huge body is wasted work.
 MAX_TEXT_CHARS = 20_000
 
+# Capstone: /submit gives up on scoring after this many seconds and returns 504.
+# Read at call time so tests can shrink it. The first request after start loads
+# the model (10-20s), so warm the model first (see RUNNING.md).
+DETECTOR_TIMEOUT_S = float(os.getenv("AI201_DETECTOR_TIMEOUT_S", "20"))
+
 
 # ─── Scoring (Milestone 4) ───────────────────────────────────────────────────
 # How much each signal counts toward the combined score.

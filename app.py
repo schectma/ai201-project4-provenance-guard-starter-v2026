@@ -24,6 +24,8 @@ Routes:
     GET  /health      is the service up, and is the model loaded
 """
 
+import threading
+import time
 import uuid
 
 from flask import Flask, jsonify, request
@@ -148,6 +150,30 @@ def health():
     })
 
 
+def _run_with_timeout(fn, arg, timeout_s):
+    """
+    Run fn(arg) in a worker thread; raise TimeoutError if it takes too long.
+    Python can't kill a thread, so a timed-out job finishes in the background,
+    but the caller gets its answer on time.
+    """
+    box = {}
+
+    def work():
+        try:
+            box["value"] = fn(arg)
+        except BaseException as exc:  # noqa: BLE001
+            box["error"] = exc
+
+    t = threading.Thread(target=work, daemon=True)
+    t.start()
+    t.join(timeout_s)
+    if t.is_alive():
+        raise TimeoutError
+    if "error" in box:
+        raise box["error"]
+    return box["value"]
+
+
 def _bad_request(message: str):
     return jsonify({"error": "bad_request", "message": message}), 400
 
@@ -203,38 +229,60 @@ def submit():
     what should this do when `text` is missing, empty, or enormous? A crash on
     a malformed input is one of the most common real failures there is.
     """
+    t0 = time.perf_counter()
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
-        return _bad_request("Send a JSON object with \"text\" and \"creator_id\".")
-
+        payload = {}
+        body_ok = False
+    else:
+        body_ok = True
     text = payload.get("text")
     creator_id = payload.get("creator_id")
+    cid = creator_id if isinstance(creator_id, str) and creator_id.strip() else "unknown"
+    n_chars = len(text) if isinstance(text, str) else None
 
+    def fail(code, error, message):
+        """Every failed /submit leaves a record (capstone: no failure as an absence)."""
+        audit.log_rejection(
+            creator_id=cid, reason=error, http_status=code, input_chars=n_chars,
+            duration_ms=round((time.perf_counter() - t0) * 1000, 1),
+        )
+        return jsonify({"error": error, "message": message}), code
+
+    if not body_ok:
+        return fail(400, "bad_request", "Send a JSON object with \"text\" and \"creator_id\".")
     if not isinstance(text, str) or not text.strip():
-        return _bad_request("Send a non-empty string in \"text\".")
-    if not isinstance(creator_id, str) or not creator_id.strip():
-        return _bad_request("Send a non-empty string in \"creator_id\".")
+        return fail(400, "bad_request", "Send a non-empty string in \"text\".")
+    if cid == "unknown":
+        return fail(400, "bad_request", "Send a non-empty string in \"creator_id\".")
     if len(text) > config.MAX_TEXT_CHARS:
-        return _bad_request(f"\"text\" is over {config.MAX_TEXT_CHARS} characters.")
+        return fail(400, "bad_request", f"\"text\" is over {config.MAX_TEXT_CHARS} characters.")
 
-    # Both signals, combined, then turned into the words the writer reads.
     import detector
     import scoring
     import stylometry
 
     try:
-        model_score = detector.model_signal(text)
+        model_score = _run_with_timeout(detector.model_signal, text, config.DETECTOR_TIMEOUT_S)
+    except TimeoutError:
+        return fail(504, "detector_timeout",
+                    f"Scoring took longer than {config.DETECTOR_TIMEOUT_S}s. Try again.")
     except ValueError as exc:
-        return _bad_request(str(exc))
+        return fail(400, "bad_request", str(exc))
     except detector.DetectorUnavailable as exc:
-        return jsonify({"error": "detector_unavailable", "message": str(exc)}), 503
+        return fail(503, "detector_unavailable", str(exc))
+    except Exception as exc:  # noqa: BLE001
+        return fail(500, "internal_error", f"{type(exc).__name__}: {exc}")
 
-    style_score = stylometry.style_signal(text)
-    confidence = scoring.combine_signals(model_score, style_score)
+    try:
+        style_score = stylometry.style_signal(text)
+        confidence = scoring.combine_signals(model_score, style_score)
+        guess, label = scoring.score_to_label(confidence)
+    except Exception as exc:  # noqa: BLE001
+        return fail(500, "internal_error", f"{type(exc).__name__}: {exc}")
 
     content_id = uuid.uuid4().hex
-    guess, label = scoring.score_to_label(confidence)
-
+    duration_ms = round((time.perf_counter() - t0) * 1000, 1)
     audit.log_decision(
         content_id=content_id,
         creator_id=creator_id,
@@ -243,6 +291,8 @@ def submit():
         style_score=style_score,
         combined_score=confidence,
         label=label,
+        input_chars=n_chars,
+        duration_ms=duration_ms,
     )
 
     return jsonify({
