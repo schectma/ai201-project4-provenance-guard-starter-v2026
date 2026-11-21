@@ -122,3 +122,41 @@ A malformed request that takes down the service is a really common real failure,
      A number you missed stays where it is, gets diagnosed, and gets a fix
      attempted. That's where the points are.
      ───────────────────────────────────────────────────────────────────────── -->
+
+
+---
+---
+
+# Capstone criteria (unit 9)
+
+Written before any capstone test run. Extension = the hardening layer on `/submit` (timeout, logged failures, `duration_ms`/`input_chars` fields). Criteria 1-4 are about the extension, 5 is about the original system. Each trial is a fresh run of `capstone_run.py`; the target must hold in all three trials. Runs go through Flask's test client with the real gpt2 model and rate limiting off, model warmed first.
+
+## Capstone 1. Every failed /submit leaves a record: 8 of 8 bad requests produce exactly one `rejected` audit entry
+
+Send 8 bad requests: missing `text`, `text` = "", `text` = "   ", `text` = a number, non-JSON body, JSON list body, 100,000-char text, missing `creator_id`. Each gets a 4xx JSON response, and the log gains exactly one new entry with `event: rejected`, a `reason`, `http_status`, and `duration_ms`. 8 of 8, every trial.
+
+**Why this target:** The whole point of the extension is that a failure must never be an absence. Any miss means some failure type is invisible. It's deterministic code, so it should be 8 of 8, not "most".
+
+## Capstone 2. Timeout: with the timeout shrunk to 0.001 s, 5 of 5 valid submissions return a 504 JSON `detector_timeout` within 1 second, and each is logged
+
+Set `config.DETECTOR_TIMEOUT_S = 0.001`, submit 5 valid texts. Each returns 504 with `error: detector_timeout` in under 1.0 s wall time, and each has a `rejected` entry with `reason: detector_timeout`. 5 of 5 each trial.
+
+**Why this target:** A request that hangs while gpt2 grinds is the failure this layer exists to stop, so the caller must get an answer fast. Under 1 s (not under the timeout exactly) allows for thread start overhead but still fails if the request waits for the model, which takes 1-2 s warm.
+
+## Capstone 3. Recovery: after the timeouts, the next 3 normal submissions all return 200
+
+Restore the timeout to 20 s (after letting background scoring jobs finish), submit 3 valid texts. 3 of 3 return 200 with a real `model_score` and `style_score`, and are logged as decisions.
+
+**Why this target:** Timed-out jobs keep running in the background (Python can't kill a thread). If they poison the model or block later requests, the hardening made things worse. Needs to be 3 of 3 since a one-off failure here would still mean a user got an error for no reason.
+
+## Capstone 4. Warm latency: median `duration_ms` of 10 normal submissions is at most 3000 ms and the slowest is at most 6000 ms
+
+10 valid texts of 80-150 words after the model is loaded, read `duration_ms` from the audit log. Median at most 3000 ms and max at most 6000 ms. Warm requests only; the first request after a cold start is excluded and said so.
+
+**Why this target:** The config comments say a warm request takes "a second or two" on CPU. 3 s median gives room for a slow laptop but would catch a regression to something users would give up on. The max bound catches the occasional stall that a median hides. Stricter (1 s) would just test my CPU, not my system.
+
+## Capstone 5. Logged duration is honest: `duration_ms` is within 25% of the wall-clock time the caller measured, for at least 9 of 10 submissions
+
+For the same 10 submissions, compare the log's `duration_ms` to a `time.perf_counter()` measurement around the client call. 9 of 10 within 25% of the wall time (or within 50 ms for fast ones).
+
+**Why this target:** Latency numbers in the log are only useful for diagnosis if they're true. If the logged time leaves out the model call (the slow part) it would look fine and be useless. 25% allows for Flask overhead outside the handler; 9 of 10 allows one scheduling hiccup.
