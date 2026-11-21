@@ -247,7 +247,21 @@ can look like one. -->
 <!-- python run_attacks.py --flood 15 -->
 
 ```
-
+  [ 1/15] 200
+  [ 2/15] 200
+  [ 3/15] 200
+  [ 4/15] 200
+  [ 5/15] 200
+  [ 6/15] 429
+  [ 7/15] 429
+  [ 8/15] 429
+  [ 9/15] 429
+  [10/15] 429
+  [11/15] 429
+  [12/15] 429
+  [13/15] 429
+  [14/15] 429
+  [15/15] 429
 ```
 
 ---
@@ -264,6 +278,9 @@ can look like one. -->
 <!-- Choose entries that show the interesting failures, not the ten easiest. -->
 
 ```json
+{"timestamp": "2026-11-05T02:22:57+00:00", "content_id": "0c31eddbd8374e6aa1ad09837c6e7f31", "creator_id": "attacker_EV01", "guess": "unsure", "model_score": 0.1635, "style_score": 0.7574, "combined_score": 0.4604, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided"}
+{"timestamp": "2026-11-05T02:22:57+00:00", "content_id": "0c31eddbd8374e6aa1ad09837c6e7f31", "creator_id": "attacker_EV01", "guess": "unsure", "model_score": 0.1635, "style_score": 0.7574, "combined_score": 0.4604, "label": "We can't tell whether this was written by a person or by AI. That doesn't mean there's a problem, and you don't need to do anything.", "status": "decided"}
+{"timestamp": "2026-11-05T02:22:59+00:00", "content_id": "2c5ae06e2c9247adbebe6fdc4475ecd1", "creator_id": "attacker_EV04", "guess": "ai", "model_score": 0.6114, "style_score": 0.7297, "combined_score": 0.6705, "label": "This might have been written with AI, but we can get this wrong, especially with plain, simple writing. If you wrote it yourself, you can ask for a person to take another look.", "status": "decided"}
 
 ```
 
