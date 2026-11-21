@@ -418,7 +418,7 @@ Out of scope: I'm not changing the detector model, the thresholds or the scoring
 
 **Running It**
 
-Path B (local with logs). Start command `python app.py`; details, environment and clean-checkout steps are in [RUNNING.md](RUNNING.md). I cloned the repo into a fresh folder and brought up the app from the clone (`/health` and `/ping` answered). I did not reinstall the pinned dependencies in a fresh venv, so that part of RUNNING.md is untested.
+Path B (local with logs). Start command `python app.py`; details, environment and clean-checkout steps are in [RUNNING.md](RUNNING.md). I cloned the repo into a fresh folder, made a new venv, ran `pip install -r requirements.txt`, started `python app.py`, and got `/health` plus a real `/submit` answer (200, `unsure`, logged to `logs/audit.jsonl`). Nothing was missing from RUNNING.md.
 
 **Instrumentation**
 
