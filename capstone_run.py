@@ -81,7 +81,12 @@ def crit1(c, seed):
     return ok, len(cases), detail
 
 
+CPU0 = 0.0
+
+
 def crit2(c, seed):
+    global CPU0
+    CPU0 = time.process_time()
     config.DETECTOR_TIMEOUT_S = 0.001
     ok, detail = 0, []
     for t in make_texts(5, seed):
@@ -98,7 +103,8 @@ def crit2(c, seed):
 
 def crit3(c, seed):
     time.sleep(8)  # let background jobs finish
-    ok, detail = 0, []
+    orphan = time.process_time() - CPU0  # CPU burned by timed-out jobs after the 504s
+    ok, detail = 0, [f"orphan_cpu={orphan:.2f}s"]
     for t in make_texts(3, seed + 1):
         r, ms = post(c, {"text": t, "creator_id": "t"})
         j = r.get_json() or {}
